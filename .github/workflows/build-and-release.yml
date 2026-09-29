@@ -115,7 +115,7 @@ jobs:
           ls -lh release-files/
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64
         with:
           tag_name: n30pro-${{ steps.get_tag.outputs.tag }}
           name: "N30Pro Firmware (${{ steps.get_tag.outputs.tag }})"
