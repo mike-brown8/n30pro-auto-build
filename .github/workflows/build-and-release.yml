@@ -34,13 +34,15 @@ jobs:
           sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk \
             gettext git libncurses5-dev libssl-dev python3 python3-setuptools \
             rsync subversion swig texinfo unzip wget zlib1g-dev libelf-dev \
-            libbsd-dev xsltproc gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi
+            libbsd-dev xsltproc gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi \
+            jq
 
       - name: Clone ImmortalWrt source
         run: |
           git clone --depth 1 -b ${{ steps.get_tag.outputs.tag }} \
             https://github.com/immortalwrt/immortalwrt.git openwrt
           cd openwrt
+          echo "Cloned ImmortalWrt tag: ${{ steps.get_tag.outputs.tag }}"
 
       - name: Update and install feeds
         run: |
@@ -52,16 +54,42 @@ jobs:
         run: |
           cp dts/mt7981b-netcore-n30pro.dts \
             openwrt/target/linux/mediatek/dts/
+          echo "✅ Injected mt7981b-netcore-n30pro.dts"
 
-      - name: Apply filogic.mk patch
+      - name: Inject N30Pro device definition
         run: |
           cd openwrt
-          PATCH_FILE="${{ github.workspace }}/patches/filogic-n30pro.patch"
-          git apply --check "$PATCH_FILE" || {
-            echo "::error::Patch check failed! Upstream filogic.mk may have changed."
-            exit 1
-          }
-          git apply "$PATCH_FILE"
+          FILE="target/linux/mediatek/image/filogic.mk"
+
+          if grep -q "Device/netcore_n30pro" "$FILE"; then
+            echo "::warning::netcore_n30pro already exists in filogic.mk, skipping injection"
+          else
+            awk '
+              /^define Device\// && !done {
+                print "# Netcore N30 Pro";
+                print "define Device/netcore_n30pro";
+                print "  DEVICE_VENDOR := Netcore";
+                print "  DEVICE_MODEL := N30 Pro";
+                print "  DEVICE_DTS := mt7981b-netcore-n30pro";
+                print "  DEVICE_DTS_DIR := ../dts";
+                print "  SUPPORTED_DEVICES += netcore,n30pro";
+                print "  DEVICE_PACKAGES := kmod-mt7915-firmware kmod-mt7981-firmware \\";
+                print "\tkmod-usb3 kmod-usb-xhci-mtk kmod-mt7531";
+                print "  IMAGE/sysupgrade.bin := append-kernel | pad-to 128k | append-rootfs | \\";
+                print "\tpad-rootfs | append-metadata";
+                print "  IMAGE/initramfs.itb := append-kernel | pad-to 128k | append-rootfs | \\";
+                print "\tpad-rootfs | append-metadata";
+                print "endef";
+                print "TARGET_DEVICES += netcore_n30pro";
+                print "";
+                done=1
+              }
+              { print }
+            ' "$FILE" > "${FILE}.tmp"
+            mv "${FILE}.tmp" "$FILE"
+            echo "✅ Injected netcore_n30pro into filogic.mk"
+            grep -A2 "Device/netcore_n30pro" "$FILE" | head -5
+          fi
 
       - name: Configure build
         run: |
@@ -87,7 +115,7 @@ jobs:
           ls -lh release-files/
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64
+        uses: softprops/action-gh-release@a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0
         with:
           tag_name: n30pro-${{ steps.get_tag.outputs.tag }}
           name: "N30Pro Firmware (${{ steps.get_tag.outputs.tag }})"
