@@ -75,9 +75,9 @@ jobs:
                 print "  SUPPORTED_DEVICES += netcore,n30pro";
                 print "  DEVICE_PACKAGES := kmod-mt7915-firmware kmod-mt7981-firmware \\";
                 print "\tkmod-usb3 kmod-usb-xhci-mtk kmod-mt7531";
-                print "  IMAGE/sysupgrade.bin := append-kernel | pad-to 128k | append-rootfs | \\";
+                print "  IMAGE/sysupgrade.itb := append-kernel | fit-image | append-rootfs | \\";
                 print "\tpad-rootfs | append-metadata";
-                print "  IMAGE/initramfs.itb := append-kernel | pad-to 128k | append-rootfs | \\";
+                print "  IMAGE/initramfs.itb := append-kernel | fit-image | append-rootfs | \\";
                 print "\tpad-rootfs | append-metadata";
                 print "endef";
                 print "TARGET_DEVICES += netcore_n30pro";
@@ -123,7 +123,7 @@ jobs:
             基于 ImmortalWrt 上游 `${{ steps.get_tag.outputs.tag }}` 编译。
 
             ### 固件文件
-            - `*n30pro*sysupgrade.bin`：系统升级固件
+            - `*n30pro*sysupgrade.itb`：系统升级固件
             - `*n30pro*initramfs.itb`：TFTP 恢复固件
 
             ---
