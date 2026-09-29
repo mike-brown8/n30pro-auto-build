@@ -17,17 +17,21 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Fetch latest ImmortalWrt release tag
+      - name: Fetch latest ImmortalWrt tag
         id: upstream
         run: |
-          LATEST_TAG=$(curl -sL \
-            https://api.github.com/repos/immortalwrt/immortalwrt/releases/latest \
-            | jq -r '.tag_name')
-          if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
+          # 获取所有 tag，过滤出版本号格式（如 v25.12.0 或 25.12.0），按版本排序取最新
+          TAGS=$(git ls-remote --tags https://github.com/immortalwrt/immortalwrt.git \
+            | awk -F/ '{print $NF}' \
+            | grep -E '^v?[0-9]+\.[0-9]+\.[0-9]+$' \
+            | sort -V)
+          LATEST_TAG=$(echo "$TAGS" | tail -n1)
+          if [ -z "$LATEST_TAG" ]; then
             echo "::error::Failed to fetch upstream tag"
             exit 1
           fi
           echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Latest upstream tag: $LATEST_TAG"
 
       - name: Read last known tag
         id: known
