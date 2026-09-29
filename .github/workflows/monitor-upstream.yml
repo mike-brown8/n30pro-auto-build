@@ -1,0 +1,50 @@
+name: Monitor Upstream Release
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # 每 6 小时检查一次
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Fetch latest ImmortalWrt release tag
+        id: upstream
+        run: |
+          LATEST_TAG=$(curl -sL \
+            https://api.github.com/repos/immortalwrt/immortalwrt/releases/latest \
+            | jq -r '.tag_name')
+          if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" == "null" ]; then
+            echo "::error::Failed to fetch upstream tag"
+            exit 1
+          fi
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+
+      - name: Read last known tag
+        id: known
+        run: |
+          if [ -f .upstream_tag ]; then
+            echo "tag=$(cat .upstream_tag)" >> $GITHUB_OUTPUT
+          else
+            echo "tag=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger build if tag changed
+        if: steps.upstream.outputs.tag != steps.known.outputs.tag
+        run: |
+          echo "New upstream tag detected: ${{ steps.upstream.outputs.tag }}"
+          echo "${{ steps.upstream.outputs.tag }}" > .upstream_tag
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .upstream_tag
+          git commit -m "chore: update upstream tag to ${{ steps.upstream.outputs.tag }}"
+          git push
