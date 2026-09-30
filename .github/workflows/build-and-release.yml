@@ -35,7 +35,7 @@ jobs:
             gettext git libncurses5-dev libssl-dev python3 python3-setuptools \
             rsync subversion swig texinfo unzip wget zlib1g-dev libelf-dev \
             libbsd-dev xsltproc gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi \
-            jq
+            jq u-boot-tools
 
       - name: Clone ImmortalWrt source
         run: |
@@ -75,9 +75,9 @@ jobs:
                 print "  SUPPORTED_DEVICES += netcore,n30pro";
                 print "  DEVICE_PACKAGES := kmod-mt7915-firmware kmod-mt7981-firmware \\";
                 print "\tkmod-usb3 kmod-usb-xhci-mtk kmod-mt7531";
-                print "  IMAGE/sysupgrade.itb := append-kernel | fit-image | append-rootfs | \\";
+                print "  IMAGE/sysupgrade.itb := append-kernel | fit gzip \$(KDIR)/image-\$(firstword \$(DEVICE_DTS)).dtb external-with-rootfs | \\";
                 print "\tpad-rootfs | append-metadata";
-                print "  IMAGE/initramfs.itb := append-kernel | fit-image | append-rootfs | \\";
+                print "  IMAGE/initramfs.itb := append-kernel | fit gzip \$(KDIR)/image-\$(firstword \$(DEVICE_DTS)).dtb external-with-rootfs | \\";
                 print "\tpad-rootfs | append-metadata";
                 print "endef";
                 print "TARGET_DEVICES += netcore_n30pro";
@@ -106,7 +106,7 @@ jobs:
           }
         timeout-minutes: 360
 
-      - name: Prepare release files
+      - name: Prepare release files and body
         run: |
           mkdir -p release-files
           find openwrt/bin/targets/mediatek/filogic/ -maxdepth 1 -type f \
@@ -114,20 +114,28 @@ jobs:
             -exec cp {} release-files/ \;
           ls -lh release-files/
 
+          # 动态生成 release body
+          echo "基于 ImmortalWrt 上游 \`${{ steps.get_tag.outputs.tag }}\` 编译。" > release-body.md
+          echo "" >> release-body.md
+          echo "### 固件文件" >> release-body.md
+          for f in release-files/*; do
+            fname=$(basename "$f")
+            if [[ "$fname" == *sysupgrade* ]]; then
+              echo "- \`$fname\`：系统升级固件" >> release-body.md
+            elif [[ "$fname" == *initramfs* ]]; then
+              echo "- \`$fname\`：TFTP 恢复固件" >> release-body.md
+            fi
+          done
+          echo "" >> release-body.md
+          echo "---" >> release-body.md
+          echo "**⚠️ 免责声明：本固件由自动化流程构建，不保证安全性及稳定性。请自行评估风险后使用。**" >> release-body.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64
         with:
           tag_name: n30pro-${{ steps.get_tag.outputs.tag }}
           name: "N30Pro Firmware (${{ steps.get_tag.outputs.tag }})"
-          body: |
-            基于 ImmortalWrt 上游 `${{ steps.get_tag.outputs.tag }}` 编译。
-
-            ### 固件文件
-            - `*n30pro*sysupgrade.itb`：系统升级固件
-            - `*n30pro*initramfs.itb`：TFTP 恢复固件
-
-            ---
-            **⚠️ 免责声明：本固件由自动化流程构建，不保证安全性及稳定性。请自行评估风险后使用。**
+          body_path: release-body.md
           files: release-files/*
           draft: false
           prerelease: false
