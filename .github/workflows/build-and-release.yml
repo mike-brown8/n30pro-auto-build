@@ -75,9 +75,9 @@ jobs:
                 print "  SUPPORTED_DEVICES += netcore,n30pro";
                 print "  DEVICE_PACKAGES := kmod-mt7915-firmware kmod-mt7981-firmware \\";
                 print "\tkmod-usb3 kmod-usb-xhci-mtk kmod-mt7531";
-                print "  IMAGE/sysupgrade.itb := append-kernel | fit gzip \$(KDIR)/image-\$(firstword \$(DEVICE_DTS)).dtb external-with-rootfs | \\";
+                print "  IMAGE/sysupgrade.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | \\";
                 print "\tpad-rootfs | append-metadata";
-                print "  IMAGE/initramfs.itb := append-kernel | fit gzip \$(KDIR)/image-\$(firstword \$(DEVICE_DTS)).dtb external-with-rootfs | \\";
+                print "  IMAGE/initramfs.itb := append-kernel | fit gzip $$(KDIR)/image-$$(firstword $$(DEVICE_DTS)).dtb external-with-rootfs | \\";
                 print "\tpad-rootfs | append-metadata";
                 print "endef";
                 print "TARGET_DEVICES += netcore_n30pro";
